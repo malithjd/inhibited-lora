@@ -169,6 +169,14 @@ class PeftArguments:
     modules_to_save: Optional[str] = field(
         default=None, metadata={"help": ""}
     )
+    target_modules: str = field(
+        default="query,key",
+        metadata={"help": "FCC-PATCH: comma-separated modules to adapt: query,key (paper) | query,key,value (released adapters) | query_proj,key_proj (DeBERTa)"},
+    )
+    adapter_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "FCC-PATCH: folder of a trained adapter to load instead of creating a new one (use with --do_eval only)"},
+    )
     lora_r: int = field(
         default=16,
         metadata={
@@ -495,10 +503,16 @@ def main():
         lora_dropout=peft_args.lora_dropout,
         # bias=peft_args.bias,
         # target_modules=peft_args.target_modules,
-        target_modules=["query", "key"]
-        # modules_to_save=model_args.modules_to_save,
+        target_modules=[m.strip() for m in peft_args.target_modules.split(",") if m.strip()],  # FCC-PATCH
+        modules_to_save=[m.strip() for m in peft_args.modules_to_save.split(",")] if peft_args.modules_to_save else None,  # FCC-PATCH
     )
-    model = get_peft_model(model_lm, peft_config)
+    if peft_args.adapter_path:  # FCC-PATCH: evaluate a released / earlier adapter as-is (gate stays active)
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model_lm, peft_args.adapter_path)
+        print(f"FCC-PATCH loaded adapter {peft_args.adapter_path}: {model.peft_config['default']}")
+    else:
+        model = get_peft_model(model_lm, peft_config)
+        model.print_trainable_parameters()  # FCC-PATCH: log the trainable-parameter count
     # print(peft_config)
     # print("###############")
     # print(model)

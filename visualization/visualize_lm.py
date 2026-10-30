@@ -75,7 +75,7 @@ model_id = script_args.model_name  #  "roberta-base" # "roberta-base" or "robert
 
 task = script_args.task  #  "squad_v2"
 model = peft.AutoPeftModel.from_pretrained(io_path / f'model_{task}_inh{script_args.lora_inhibition}')
-model = model.merge_and_unload()
+# model = model.merge_and_unload()  # FCC-PATCH: merging drops the InA gate; keep the adapter live
 
 
 # Set device for model

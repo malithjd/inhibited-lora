@@ -1,3 +1,23 @@
+# InA reproduction fork (Fordham University, Oct 2026)
+
+**Fork of [ChengKang520/inhibited-lora](https://github.com/ChengKang520/inhibited-lora) at commit [`d1d6685`](https://github.com/ChengKang520/inhibited-lora/tree/d1d668520d6a3b9a32112bb7a27e88fe981d7fc1)**, the code for Kang et al., [*InA: Inhibition Adaption on pre-trained language models*, Neural Networks 178 (2024) 106410](https://doi.org/10.1016/j.neunet.2024.106410). InA is the original authors' work; this fork only makes their code runnable and checkable. The upstream README follows unchanged below the line.
+
+**Results:** [REPRODUCTION.md](REPRODUCTION.md) · **Rerun or change settings:** [fcc/README.md](fcc/README.md) · **Full diff against upstream:** [d1d6685...main](https://github.com/malithjd/inhibited-lora/compare/d1d6685...main)
+
+### Changes to the original repo
+
+| File | Change | Why |
+|---|---|---|
+| `peft-0.10.0/src/peft/tuners/lora/layer.py` | The sign of `--lora_inhibition` (Inh) picks the version. **Inh < 0: shunting inhibition**, identical to upstream commit [`59021f2`](https://github.com/ChengKang520/inhibited-lora/commit/59021f2) (Aug 6, 2025): LeakyReLU(z − abs(Inh) × max z), slope 0.01. **Inh > 0: shunting activation**, the unchanged current code: LeakyReLU(z + Inh × max z), slope 0.1. **Inh = 0:** plain LoRA, unchanged. `INA_ACT=gelu` or `INA_ACT=relu` swaps the activation. | Upstream runs the gate only when Inh > 0, so a negative value silently trains plain LoRA. The released checkpoints need the Aug 6 version. |
+| `peft-0.10.0/src/peft/tuners/lora/bnb.py` | Per-token `torch.max(z, dim=-1)` and the same sign rule. | The 4-bit path crashed on `torch.max(z)`. |
+| `transformers-4.53.0/examples/pytorch/text-classification/run_glue.py` and `.../question-answering/run_qa.py` | New `--target_modules` (default `query,key`, as upstream) and `--adapter_path` (evaluate a saved adapter); `--modules_to_save` is now passed on. | Upstream hard-codes `query,key`; the released checkpoints use `query,key,value`. |
+| `visualization/visualize_lm.py` | Removed `merge_and_unload()`. | Merging drops the InA gate from the heatmaps. |
+| New: `fcc/`, `results/`, `REPRODUCTION.md` | Slurm scripts, run lists, result tables, and `fcc/check_versions.py`. | So anyone in the group can rerun or change a setting. |
+
+`python fcc/check_versions.py` confirms the fork gives the same outputs as upstream for Inh ≥ 0 and as commit 59021f2 for Inh < 0.
+
+---
+
 #  Shunting Inhibition and Activation Adaption on Pre-Trained Language Models
 
 

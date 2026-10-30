@@ -24,7 +24,7 @@ from peft.tuners.tuners_utils import BaseTunerLayer, check_adapters_to_merge
 from peft.utils.integrations import dequantize_bnb_weight
 from peft.utils.other import transpose
 
-from .layer import LoraLayer
+from .layer import LoraLayer, _ina_act  # FCC-PATCH FCC-PATCH-v2
 
 
 if is_bnb_available():
@@ -201,10 +201,10 @@ if is_bnb_available():
                 # print("******************  BNB  ******************")
                 lora_A_temp = lora_A(dropout(sub_batch))
                 # out_, inds_ = torch.max(lora_A_temp, dim=2)
-                out_, inds_ = torch.max(lora_A_temp)
+                out_, inds_ = torch.max(lora_A_temp, dim=-1)  # FCC-PATCH: per-token max over r
                 out_ = out_.unsqueeze(2)
-                if lora_inhibition > 0.0:
-                    lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp - out_ * lora_inhibition)
+                if lora_inhibition != 0.0:
+                    lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                     output = lora_B(lora_ina_temp) * scaling
                 else:
                     output = lora_B(lora_A_temp) * scaling
@@ -249,10 +249,10 @@ if is_bnb_available():
                         # print("******************  BNB  ******************")
                         lora_A_temp = lora_A(dropout(x))
                         # out_, inds_ = torch.max(lora_A_temp, dim=2)
-                        out_, inds_ = torch.max(lora_A_temp)
+                        out_, inds_ = torch.max(lora_A_temp, dim=-1)  # FCC-PATCH: per-token max over r
                         out_ = out_.unsqueeze(2)
-                        if lora_inhibition > 0.0:
-                            lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp - out_ * lora_inhibition)
+                        if lora_inhibition != 0.0:
+                            lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                             output = lora_B(lora_ina_temp) * scaling
                         else:
                             output = lora_B(lora_A_temp) * scaling
@@ -461,10 +461,10 @@ if is_bnb_4bit_available():
                 # print("******************  BNB  ******************")
                 lora_A_temp = lora_A(dropout(sub_batch))
                 # out_, inds_ = torch.max(lora_A_temp, dim=2)
-                out_, inds_ = torch.max(lora_A_temp)
+                out_, inds_ = torch.max(lora_A_temp, dim=-1)  # FCC-PATCH: per-token max over r
                 out_ = out_.unsqueeze(2)
-                if lora_inhibition > 0.0:
-                    lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp - out_ * lora_inhibition)
+                if lora_inhibition != 0.0:
+                    lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                     output = lora_B(lora_ina_temp) * scaling
                 else:
                     output = lora_B(lora_A_temp) * scaling
@@ -514,10 +514,10 @@ if is_bnb_4bit_available():
                         # print("******************  BNB  ******************")
                         lora_A_temp = lora_A(dropout(x))
                         # out_, inds_ = torch.max(lora_A_temp, dim=2)
-                        out_, inds_ = torch.max(lora_A_temp)
+                        out_, inds_ = torch.max(lora_A_temp, dim=-1)  # FCC-PATCH: per-token max over r
                         out_ = out_.unsqueeze(2)
-                        if lora_inhibition > 0.0:
-                            lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp - out_ * lora_inhibition)
+                        if lora_inhibition != 0.0:
+                            lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                             output = lora_B(lora_ina_temp) * scaling
                         else:
                             output = lora_B(lora_A_temp) * scaling

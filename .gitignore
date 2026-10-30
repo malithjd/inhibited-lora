@@ -1,0 +1,4 @@
+*.egg-info/
+__pycache__/
+requirements.fcc.txt
+fcc/level3_runs.txt

@@ -28,6 +28,20 @@ from peft.utils.other import transpose
 
 from .config import LoraConfig
 
+# FCC-PATCH: InA activation. Default = the repo's LeakyReLU(0.1); INA_ACT=gelu gives the paper's stated default.
+import os as _os
+_INA_ACT = _os.environ.get("INA_ACT", "leaky_relu").lower()
+
+
+def _ina_act(x, inhibition=1.0):  # FCC-PATCH-v2: sign of inhibition picks the code version
+    if _INA_ACT == "gelu":
+        return torch.nn.functional.gelu(x)
+    if _INA_ACT == "relu":
+        return torch.nn.functional.relu(x)
+    # <0: commit 59021f2 (6 Aug 2025, released adapters) used F.leaky_relu's default slope 0.01
+    # >0: commit 4409cbb (11 Aug 2025, current) uses slope 0.1
+    return torch.nn.functional.leaky_relu(x, negative_slope=0.01 if inhibition < 0 else 0.1)
+
 
 class LoraLayer(BaseTunerLayer):
     # All names of layers that may contain (trainable) adapter weights
@@ -324,8 +338,8 @@ class LoraLayer(BaseTunerLayer):
             out_ = out_.unsqueeze(2)
             # out_ = torch.max(lora_A_temp)
 
-            if lora_inhibition > 0.0:
-                lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp + out_ * lora_inhibition, negative_slope=0.1)
+            if lora_inhibition != 0.0:  # FCC-PATCH: <0 = inhibition, >0 = activation
+                lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                 lora_output = lora_B(lora_ina_temp) * scaling
                 # print("################################################################")
                 # print("The inhibition level is :" + str(lora_inhibition) + ".")
@@ -534,8 +548,8 @@ class Linear(nn.Module, LoraLayer):
                     out_ = out_.unsqueeze(2)
                     # out_ = torch.max(lora_A_temp)
 
-                    if lora_inhibition > 0.0:
-                        lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp + out_ * lora_inhibition, negative_slope=0.1)
+                    if lora_inhibition != 0.0:  # FCC-PATCH: <0 = inhibition, >0 = activation
+                        lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                         result = result + lora_B(lora_ina_temp) * scaling
                         # print("################################################################")
                         # print("The inhibition level is :" + str(lora_inhibition) + ".")
@@ -742,8 +756,8 @@ class Embedding(nn.Module, LoraLayer):
             out_ = out_.unsqueeze(2)
             # out_ = torch.max(after_A)
 
-            if lora_inhibition > 0.0:
-                after_A = torch.nn.functional.leaky_relu(after_A + out_ * lora_inhibition, negative_slope=0.1)
+            if lora_inhibition != 0.0:  # FCC-PATCH: <0 = inhibition, >0 = activation
+                after_A = _ina_act(after_A + out_ * lora_inhibition, lora_inhibition)
                 # print("################################################################")
                 # print("The inhibition level is :" + str(lora_inhibition) + ".")
                 # print(x.shape)
@@ -798,8 +812,8 @@ class Embedding(nn.Module, LoraLayer):
                 out_ = out_.unsqueeze(2)
                 # out_ = torch.max(after_A)
 
-                if lora_inhibition > 0.0:
-                    after_A = torch.nn.functional.leaky_relu(after_A + out_ * lora_inhibition, negative_slope=0.1)
+                if lora_inhibition != 0.0:  # FCC-PATCH: <0 = inhibition, >0 = activation
+                    after_A = _ina_act(after_A + out_ * lora_inhibition, lora_inhibition)
                     # print("################################################################")
                     # print("The inhibition level is :" + str(lora_inhibition) + ".")
                     # print(x.shape)
@@ -1095,8 +1109,8 @@ class Conv2d(nn.Module, LoraLayer):
                     out_ = out_.unsqueeze(2)
                     # out_ = torch.max(lora_A_temp)
 
-                    if lora_inhibition > 0.0:
-                        lora_ina_temp = torch.nn.functional.leaky_relu(lora_A_temp + out_ * lora_inhibition, negative_slope=0.1)
+                    if lora_inhibition != 0.0:  # FCC-PATCH: <0 = inhibition, >0 = activation
+                        lora_ina_temp = _ina_act(lora_A_temp + out_ * lora_inhibition, lora_inhibition)
                         # print("################################################################")
                         # print("The inhibition level is :" + str(lora_inhibition) + ".")
                         # print(x.shape)
