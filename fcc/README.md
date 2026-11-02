@@ -30,7 +30,7 @@ python ~/ina/scripts/prefetch.py                 # models, GLUE, SQuAD and metri
 python fcc/check_versions.py                     # every line SAME except the two "should differ" lines
 ```
 
-Do not run `apply_fcc_patches.py` here: its changes are already in this repo. It is kept as the record of what changed, and it can patch a fresh upstream clone.
+Do not run `apply_fcc_patches.py` or `patch_task_dropout.py` here: their changes are already in this repo. It is kept as the record of what changed, and it can patch a fresh upstream clone.
 
 ## 2. Run
 
@@ -42,6 +42,7 @@ Do not run `apply_fcc_patches.py` here: its changes are already in this repo. It
 | `sbatch ~/ina/scripts/level2_aug06.sbatch` | 20 lines of `level2_aug06_runs.txt` | `$RUNS/level2_aug06` |
 | `sbatch ~/ina/scripts/squad.sbatch <model> <squad or squad_v2> <inh> <rank>` | one SQuAD run | `$RUNS/squad` (inh ≥ 0), `$RUNS/squad_aug06` (inh < 0) |
 | `bash ~/ina/scripts/make_level3_runs.sh`, then `sbatch --array=1-<N>%1 ~/ina/scripts/level3_glue_paper.sbatch` | paper Table 1 recipe, 3 seeds | `$RUNS/level3` |
+| `sbatch ~/ina/scripts/claims.sbatch` | paper Table 1 recipe on the paper's 3 biggest InA-over-LoRA claims (BERT RTE, RoBERTa CoLA, DeBERTa-v3 CoLA), InA vs plain LoRA, 3 seeds each: 18 runs | `$RUNS/claims` |
 
 Watch: `squeue -u $USER`, `tail -f ~/ina/logs/<job log>`. Tables: `python ~/ina/scripts/compare_all.py $RUNS --released $REPO/output_final/BERT_large` (side by side) or `python ~/ina/scripts/collect_results.py $RUNS/<set>` (one set, with mean ± std over seeds).
 
@@ -50,6 +51,7 @@ Watch: `squeue -u $USER`, `tail -f ~/ina/logs/<job log>`. Tables: `python ~/ina/
 - **Which runs:** edit the run lists. Each line of `level2_runs.txt` and `level2_aug06_runs.txt` is `NAME task inhibition rank`; then change `--array=1-N%1` in the `.sbatch` to the number of lines. For Level 3, edit `MODELS`, `TASKS`, `INHS`, `SEEDS` in `make_level3_runs.sh`.
 - **The inhibition sign picks the code version:** negative = shunting inhibition (subtracts the threshold, as in the paper and the released checkpoints), positive = shunting activation (adds it, current upstream code), 0 = plain LoRA.
 - **Activation:** `INA_ACT=gelu sbatch ...` or `INA_ACT=relu sbatch ...` (default LeakyReLU).
-- **Hyperparameters:** edit the `python ... run_glue.py` flags inside the `.sbatch` file (learning rate, epochs, batch size, `--lora_r`, `--target_modules`). `--target_modules` is `query,key` (paper), `query,key,value` (released checkpoints) or `query_proj,key_proj` (DeBERTa).
+- **Hyperparameters:** edit the `python ... run_glue.py` flags inside the `.sbatch` file (learning rate, epochs, batch size, `--lora_r`, `--target_modules`, `--task_dropout` for the classifier dropout). `--target_modules` is `query,key` (paper), `query,key,value` (released checkpoints) or `query_proj,key_proj` (DeBERTa).
 - **New output folder:** change the `--output_dir` line, so new results do not overwrite old ones.
 - Student accounts get one GPU, so keep `%1` in `--array`; each run waits for the previous one.
+- **Which score to compare:** with `--eval_strategy epoch`, `run_glue.py` saves every epoch and reports the epoch with the lowest dev loss in `eval_results.json`; the `best_ep` column of `collect_results.py` is the best dev score over epochs, which is how the paper picks its numbers.

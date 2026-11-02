@@ -264,6 +264,10 @@ class PeftArguments:
             )
         },
     )
+    task_dropout: Optional[float] = field(
+        default=None,
+        metadata={"help": "FCC-PATCH: dropout before the classifier head (paper Table 1: 0.15); default = the model's own"},
+    )
     lora_inhibition: Optional[float] = field(
         default=None,
         metadata={
@@ -455,6 +459,9 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    if peft_args.task_dropout is not None:  # FCC-PATCH: paper Table 1 "Dropout of task layer"
+        config.classifier_dropout = peft_args.task_dropout  # BERT and RoBERTa heads
+        config.cls_dropout = peft_args.task_dropout  # DeBERTa-v2/v3 head
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
